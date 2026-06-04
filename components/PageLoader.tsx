@@ -105,7 +105,7 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        backgroundColor: "#ffff",
+        backgroundColor: "#F8F3F4",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -119,7 +119,7 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
           alignItems: "center",
           gap: "0.28em",
           fontSize: "3rem",
-          color: "#000",
+          color: "#232323",
           letterSpacing: "-0.025em",
           lineHeight: 1,
           userSelect: "none",
@@ -187,21 +187,7 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
 
       </div>
 
-      <p
-        style={{
-          position: "absolute",
-          bottom: "calc(clamp(1.5rem, 4vh, 3rem) + 0.7rem)",
-          right: "clamp(2rem, 6vw, 5rem)",
-          margin: 0,
-          fontSize: "0.58rem",
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "rgba(240,235,229,0.15)",
-          fontFamily: "var(--font-geist-mono, monospace)",
-        }}
-      >
-        Loading
-      </p>
+
     </div>
   );
 }
