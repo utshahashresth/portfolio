@@ -174,18 +174,7 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
       </div>
 
       {/* ── progress bar ──────────────────────────────────────── */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: "2px",
-          background: "rgba(0,0,0,0.08)",
-        }}
-      >
 
-      </div>
 
 
     </div>

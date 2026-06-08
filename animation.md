@@ -1,253 +1,518 @@
-# PageLoader Bug Report
-
-Full diagnosis of why the vertical word carousel in `PageLoader.tsx` renders static
-text ("Apps" frozen, no animation) instead of cycling through `["Apps", "Portfolio", "Work"]`.
+markdown# Ingmar Coenen — Hero Intro Stack & Shuffle Animation
+## Analysis + Next.js / GSAP Implementation Guide
 
 ---
 
-## Bug 1 — `document.fonts.ready` kills the spin timer (root cause of "no animation")
+## 1. What the Animation Does (Frame-by-Frame)
 
-### What the code does
+### Phase 0 — Initial state (before animation runs)
+- Page background is white.
+- Large serif heading **"Hey,"** (Tiempos Headline) is visible but rendered in a **dark grey / desaturated** color (`color: #999` or similar).
+- All portfolio images are **hidden below the viewport** (`y: "100vh"` or similar large positive Y offset, `opacity: 0`).
+- The images are stacked **on top of each other** — same X/Y position, same z-index stacking order — effectively invisible under the fold.
+
+### Phase 1 — Stack rise (0s → ~0.6s)
+- All images **simultaneously** animate upward from below the screen into a **single stacked pile** at the **visual center** of the hero — roughly overlapping the "Hey," text.
+- They arrive all at once (same `duration`, same `ease`), landing stacked on top of each other.
+- `y`: from `120vh` → `0` (their final layout position)
+- `opacity`: from `0` → `1`
+- Ease: `power3.out` or `expo.out`
+
+### Phase 2 — Shuffle / spread (overlaps Phase 1, ~0.4s → ~1.4s)
+- Immediately after (or staggered slightly), images **fly out** from the stack to their pre-defined **absolute positions** scattered around the "Hey," text.
+- Each image has a unique `x` / `y` target.
+- A **small stagger** (`stagger: 0.06` – `0.1`) is used so they don't all land simultaneously — giving a "card being dealt" feel.
+- Rotation: each image gets a **slight random tilt** (`rotation: -4` to `+4` degrees) for organic feel.
+- Ease: `power2.out` or `back.out(1.2)` — slight overshoot on some cards.
+
+### Phase 3 — Final state (after ~1.5s)
+- All 6 images are **grayscale** (`filter: grayscale(100%)`), placed in their fixed grid-like positions.
+- The "Hey," text transitions to **full black** (`color: #000` or `#111`).
+- The nav items and "Portfolio 2022" label fade in or were always visible.
+
+---
+
+## 2. Layout — Image Positions (relative to the hero container)
+
+The hero section is full-viewport-height. Images are **absolutely positioned** relative to it.
+┌─────────────────────────────────────────────────────┐
+│  [img-1: phone mockup]      [img-2: desktop mockup] │
+│  top-left quarter            top-right quarter       │
+│                                                      │
+│        [ img-3: tall card ]      [ img-5: ring ]     │
+│        center-left               right-center        │
+│                                                      │
+│              H e y ,                                 │
+│                                                      │
+│  [img-4: poster]    [img-6: 181]    [img-7: person]  │
+│  bottom-left        bottom-center   bottom-right     │
+└─────────────────────────────────────────────────────┘
+
+Approximate CSS positions (as % of container):
+
+| Image | top     | left / right  | width   | notes             |
+|-------|---------|---------------|---------|-------------------|
+| img-1 | 15%     | left: 22%     | 12%     | portrait          |
+| img-2 | 14%     | left: 56%     | 14%     | landscape         |
+| img-3 | 38%     | left: 30%     | 10%     | tall/portrait     |
+| img-4 | 60%     | left: 11%     | 10%     | square            |
+| img-5 | 42%     | right: 8%     | 9%      | small square      |
+| img-6 | 62%     | left: 47%     | 10%     | square            |
+| img-7 | 60%     | left: 62%     | 10%     | portrait          |
+
+> The "Hey," text is centered vertically (~45% from top) and starts at ~28% from left.
+
+---
+
+## 3. Tech Stack Details (from Godly tags)
+
+- **Framework**: WordPress (but we'll use Next.js)
+- **Animation**: GSAP
+- **Font**: Tiempos Headline (serif, for "Hey,") + Neue Montreal (sans-serif, UI)
+- **Style tags**: Animation, Scrolling Animation, Transitions, Light, Minimal
+
+---
+
+## 4. File Structure (Next.js App Router)
+src/
+├── app/
+│   └── page.tsx              # Main page
+├── components/
+│   └── HeroIntro/
+│       ├── HeroIntro.tsx     # Main component
+│       ├── HeroIntro.module.css
+│       └── imageData.ts      # Image positions config
+└── lib/
+└── animations/
+└── heroIntro.ts      # GSAP timeline factory
+
+---
+
+## 5. Image Data Config (`imageData.ts`)
+
 ```ts
-document.fonts.ready.then(() => {
-  if (cancelled) return;
+// src/components/HeroIntro/imageData.ts
 
-  ctx = gsap.context(() => {
-    // GSAP entrance tweens ...
+export interface HeroImage {
+  id: string
+  src: string
+  alt: string
+  style: React.CSSProperties
+  rotation: number   // degrees
+}
 
-    // word spin timer lives INSIDE here
-    timers.push(
-      setTimeout(() => {
-        const spin = setInterval(() => {
-          setWordIndex((prev) => (prev + 1) % WORDS.length);
-        }, SPIN_INTERVAL);
-      }, ENTRANCE_DELAY),
-    );
-  }, overlay);
-});
-```
-
-### Why it breaks in Next.js
-
-`document.fonts.ready` is a `Promise<FontFaceSet>` that resolves when all fonts in
-the document are loaded. In Next.js App Router the timing is unpredictable:
-
-- **Early resolution**: if fonts are already cached, the promise resolves
-  synchronously (microtask queue) — before React finishes hydrating the overlay
-  DOM. `gsap.context(() => {}, overlay)` then runs selector queries like
-  `[data-loader-left]` and finds **zero elements** because the ref'd `overlay`
-  node exists but its children haven't been committed to the DOM yet.
-  GSAP fails silently, `ctx` is set to a broken context, and every `gsap.set` /
-  `gsap.to` inside it is a no-op. The `setTimeout` for the spin is registered
-  inside `gsap.context` — but GSAP doesn't manage `setTimeout`. The timeout
-  fires but `cancelled` may be stale depending on StrictMode timing (see Bug 2).
-
-- **Late resolution / never resolves**: if a custom font (`--font-geist-mono`)
-  fails to load, `fonts.ready` never resolves in some environments. The entire
-  `.then()` block never executes. React renders "Apps" (initial state) and
-  nothing ever calls `setWordIndex`.
-
-### DOM injection detail
-
-`gsap.context(fn, scope)` internally calls `scope.querySelectorAll(selector)` for
-every selector string passed to GSAP tweens inside `fn`. When `fonts.ready`
-resolves too early the React fiber tree has not yet committed child nodes to the
-real DOM. The overlay `<div>` (the scope) is in the DOM but its children —
-`[data-loader-left]`, `[data-loader-slot]`, `[data-loader-right]` — are not.
-`querySelectorAll` returns an empty `NodeList`. GSAP creates tweens targeting
-zero elements. No animation plays. No error is thrown.
-
-### Fix
-
-Split into two independent `useEffect`s. Remove `document.fonts.ready` entirely —
-it is only required when GSAP needs to **measure text dimensions** (e.g.
-`SplitText`, `getBoundingClientRect`). Pure `transform` + `opacity` tweens do not
-need font metrics.
-
-```ts
-// Effect 1 — GSAP visuals only
-useEffect(() => {
-  const overlay = overlayRef.current;
-  if (!overlay) return;
-  const ctx = gsap.context(() => { /* entrance, progress, fade */ }, overlay);
-  return () => ctx.revert();
-}, [onComplete]);
-
-// Effect 2 — word spin, pure React, no GSAP dependency
-useEffect(() => {
-  let spinInterval: ReturnType<typeof setInterval> | null = null;
-  const startTimer = setTimeout(() => {
-    spinInterval = setInterval(() => {
-      setWordIndex((prev) => (prev + 1) % WORDS.length);
-    }, SPIN_INTERVAL);
-  }, ENTRANCE_DELAY);
-  const stopTimer = setTimeout(() => {
-    if (spinInterval) clearInterval(spinInterval);
-  }, (TOTAL_DURATION - 0.4) * 1000);
-  return () => {
-    clearTimeout(startTimer);
-    clearTimeout(stopTimer);
-    if (spinInterval) clearInterval(spinInterval);
-  };
-}, []);
+export const heroImages: HeroImage[] = [
+  {
+    id: "img-1",
+    src: "/images/project-phone.jpg",
+    alt: "Phone mockup",
+    style: { top: "15%", left: "22%", width: "12%" },
+    rotation: -2,
+  },
+  {
+    id: "img-2",
+    src: "/images/project-desktop.jpg",
+    alt: "Desktop mockup",
+    style: { top: "14%", left: "56%", width: "14%" },
+    rotation: 1.5,
+  },
+  {
+    id: "img-3",
+    src: "/images/project-card.jpg",
+    alt: "Project card",
+    style: { top: "38%", left: "30%", width: "10%" },
+    rotation: -3,
+  },
+  {
+    id: "img-4",
+    src: "/images/project-poster.jpg",
+    alt: "Poster",
+    style: { top: "62%", left: "11%", width: "10%" },
+    rotation: 2,
+  },
+  {
+    id: "img-5",
+    src: "/images/project-ring.jpg",
+    alt: "Ring product",
+    style: { top: "42%", right: "8%", width: "9%" },
+    rotation: -1,
+  },
+  {
+    id: "img-6",
+    src: "/images/project-181.jpg",
+    alt: "181 project",
+    style: { top: "63%", left: "47%", width: "10%" },
+    rotation: 1,
+  },
+  {
+    id: "img-7",
+    src: "/images/project-portrait.jpg",
+    alt: "Portrait",
+    style: { top: "61%", left: "62%", width: "10%" },
+    rotation: -2.5,
+  },
+]
 ```
 
 ---
 
-## Bug 2 — React StrictMode double-invoke makes `cancelled` unreliable
+## 6. GSAP Animation Factory (`heroIntro.ts`)
 
-### What the code does
 ```ts
-let cancelled = false;
+// src/lib/animations/heroIntro.ts
+import gsap from "gsap"
 
-document.fonts.ready.then(() => {
-  if (cancelled) return; // guard
-  // ...
-  setTimeout(() => {
-    if (cancelled) return; // guard inside timer
-    const spin = setInterval(() => { ... });
-  }, ENTRANCE_DELAY);
-});
+/**
+ * Runs the hero intro: stack-from-bottom → shuffle-to-position
+ * @param images  - array of DOM elements (the img wrappers)
+ * @param heading - the "Hey," heading element
+ */
+export function runHeroIntroAnimation(
+  images: HTMLElement[],
+  heading: HTMLElement
+) {
+  const tl = gsap.timeline({ defaults: { ease: "power3.out" } })
 
-return () => {
-  cancelled = true; // cleanup
-  timers.forEach(clearTimeout);
-  ctx?.revert();
-};
+  // ─── Set initial state ────────────────────────────────────────────────────
+  // All images start stacked at center, below viewport
+  gsap.set(images, {
+    // Position them all at a center point (override CSS absolute pos temporarily)
+    position: "absolute",
+    xPercent: -50,
+    yPercent: -50,
+    left: "50%",
+    top: "50%",
+    y: "120vh",        // below the fold
+    opacity: 0,
+    scale: 0.9,
+    filter: "grayscale(100%)",
+    rotation: 0,       // start with no rotation
+  })
+
+  // Heading starts grey
+  gsap.set(heading, { color: "#888" })
+
+  // ─── Phase 1: All images rise into center stack ───────────────────────────
+  tl.to(images, {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    duration: 0.65,
+    ease: "power3.out",
+    stagger: 0,         // ALL at same time — they land as one stack
+  })
+
+  // ─── Phase 2: Images shuffle out to their absolute positions ─────────────
+  // We clear the temporary centering overrides and animate to final CSS layout
+  tl.to(
+    images,
+    {
+      duration: 0.75,
+      ease: "power2.out",
+      stagger: {
+        each: 0.07,          // small stagger — "dealt like cards"
+        from: "center",      // spread from center outward
+      },
+      // Return to their own CSS-defined positions
+      // GSAP will clear xPercent/yPercent/left/top overrides
+      clearProps: "left,top,xPercent,yPercent",
+      // Apply the rotation from data
+      rotation: (_i: number, el: HTMLElement) =>
+        parseFloat(el.dataset.rotation ?? "0"),
+    },
+    "-=0.2"  // slight overlap with Phase 1
+  )
+
+  // ─── Phase 3: Heading transitions to black ────────────────────────────────
+  tl.to(
+    heading,
+    {
+      color: "#111",
+      duration: 0.5,
+      ease: "power2.out",
+    },
+    "-=0.4"
+  )
+
+  return tl
+}
 ```
-
-### Why it breaks
-
-Next.js in development uses `React.StrictMode`. In StrictMode, React **mounts →
-unmounts → remounts** every component on first render to catch side effects.
-Each `useEffect` call gets its own closure scope with its own `cancelled` variable.
-
-Timeline:
-
-| Step | Closure | `cancelled` |
-|------|---------|-------------|
-| 1st effect runs | closure-A | `false` |
-| `fonts.ready` queued for closure-A | closure-A | `false` |
-| StrictMode cleanup fires | closure-A | set to `true` |
-| 2nd effect runs | closure-B | `false` |
-| `fonts.ready` queued for closure-B | closure-B | `false` |
-| closure-A's `.then()` resolves | closure-A | `true` → early return ✓ |
-| closure-B's `.then()` resolves | closure-B | `false` → continues ✓ |
-
-This part works correctly. **But** — because `fonts.ready` is async, the exact
-order of steps 6 and 7 depends on the browser's microtask queue. If both promises
-resolve in the same microtask flush (common when fonts are cached), both closures
-can enter the `.then()` body before either cleanup has run, resulting in two
-concurrent GSAP contexts and two spin intervals firing simultaneously. The UI
-flickers between word indices unpredictably.
-
-### Fix
-
-Keeping the two effects separate (Bug 1 fix) resolves this for the spin. For GSAP,
-`ctx.revert()` in the cleanup is sufficient — it kills all tweens registered in
-that context. No `cancelled` flag is needed when the async wrapper is removed.
 
 ---
 
-## Bug 3 — `AnimatePresence mode="popLayout"` collapses the slot width
+## 7. Hero Component (`HeroIntro.tsx`)
 
-### What the code does
 ```tsx
-<AnimatePresence mode="popLayout" initial={false}>
-  <motion.span key={wordIndex} ...>
-    {WORDS[wordIndex]}
-  </motion.span>
-</AnimatePresence>
+// src/components/HeroIntro/HeroIntro.tsx
+"use client"
+
+import { useEffect, useRef } from "react"
+import Image from "next/image"
+import styles from "./HeroIntro.module.css"
+import { heroImages } from "./imageData"
+import { runHeroIntroAnimation } from "@/lib/animations/heroIntro"
+
+export default function HeroIntro() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const imageRefs = useRef<HTMLDivElement[]>([])
+
+  // Collect image refs
+  const setImageRef = (el: HTMLDivElement | null, i: number) => {
+    if (el) imageRefs.current[i] = el
+  }
+
+  useEffect(() => {
+    const images = imageRefs.current.filter(Boolean)
+    const heading = headingRef.current
+    if (!images.length || !heading) return
+
+    // Small delay so layout is fully painted before GSAP reads positions
+    const timeout = setTimeout(() => {
+      runHeroIntroAnimation(images, heading)
+    }, 100)
+
+    return () => clearTimeout(timeout)
+  }, [])
+
+  return (
+    <section className={styles.hero} ref={containerRef}>
+      {/* Navigation */}
+      <nav className={styles.nav}>
+        <span className={styles.navName}>Ingmar Coenen</span>
+        <span className={styles.navRole}>Digital Design &amp; Direction</span>
+        <span className={styles.navLinks}>Work, Archive</span>
+      </nav>
+
+      {/* Floating images — absolutely positioned */}
+      {heroImages.map((img, i) => (
+        <div
+          key={img.id}
+          ref={(el) => setImageRef(el, i)}
+          className={styles.imageWrapper}
+          style={img.style}
+          data-rotation={img.rotation}
+        >
+          <Image
+            src={img.src}
+            alt={img.alt}
+            fill
+            style={{ objectFit: "cover" }}
+            priority={i < 3}
+          />
+        </div>
+      ))}
+
+      {/* "Hey," heading */}
+      <h1 className={styles.heading} ref={headingRef}>
+        Hey,
+      </h1>
+
+      {/* Bottom left label */}
+      <div className={styles.meta}>
+        <span>Portfolio</span>
+        <span>2022</span>
+      </div>
+    </section>
+  )
+}
 ```
 
-### Why it breaks
+---
 
-`mode="popLayout"` is designed for **list reordering** (e.g. a sortable todo list).
-When an item exits, Framer Motion immediately removes it from the normal document
-flow by applying `position: absolute` to the exiting element and snapshotting its
-last layout position. This is intended to let other list items reflow into the
-gap while the removed item plays its exit animation.
+## 8. CSS Module (`HeroIntro.module.css`)
 
-Inside the carousel slot:
+```css
+/* src/components/HeroIntro/HeroIntro.module.css */
 
-1. Word exits → Framer sets it to `position: absolute`, removes it from flow.
-2. Slot `<div>` (which has no explicit `width`) now has **zero in-flow children**.
-3. Slot collapses to `width: 0`.
-4. Entering word is also `position: absolute` (set by Framer during popLayout),
-   so it doesn't re-expand the slot.
-5. Both words animate but are invisible — they're outside the `overflow: hidden`
-   clip area because the clipping box collapsed.
+.hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: #ffffff;
+  overflow: hidden;
+  /* Subtle warm off-white tint like the original */
+  /* background: #faf9f7; */
+}
 
-### Fix
+/* Navigation */
+.nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem;
+  font-family: "Neue Montreal", sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  color: #111;
+  z-index: 10;
+}
 
-Use `mode="sync"`. Sync mode lets the exiting and entering elements coexist in
-the DOM simultaneously during the transition without touching their `position`.
-Add `position: absolute` manually to the `motion.span` so both words occupy the
-same space and slide past each other inside the clip. Add a hidden sizer `<span>`
-to hold the slot's width while both animated spans are out of normal flow.
+/* Image wrappers — absolutely positioned by inline style from imageData */
+.imageWrapper {
+  position: absolute;
+  aspect-ratio: 3 / 4;   /* default portrait; override per-image if needed */
+  overflow: hidden;
+  border-radius: 2px;
+  filter: grayscale(100%);
+  /* z-index lower than heading so "Hey," reads on top */
+  z-index: 1;
+  will-change: transform, opacity;
+}
+
+/* "Hey," headline */
+.heading {
+  position: absolute;
+  top: 45%;
+  left: 28%;
+  transform: translateY(-50%);
+  font-family: "Tiempos Headline", Georgia, serif;
+  font-size: clamp(5rem, 10vw, 10rem);
+  font-weight: 400;        /* regular weight for elegance */
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: #888;             /* GSAP will animate this to #111 */
+  z-index: 2;              /* above images */
+  margin: 0;
+  will-change: color;
+}
+
+/* Bottom-left meta label */
+.meta {
+  position: absolute;
+  bottom: 2rem;
+  left: 2rem;
+  font-family: "Neue Montreal", sans-serif;
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.4;
+}
+```
+
+---
+
+## 9. Page Usage (`page.tsx`)
 
 ```tsx
-<div
-  data-loader-slot=""
-  style={{ position: "relative", height: SLOT_H, overflow: "hidden" }}
->
-  {/* holds slot width — animated words are absolute and don't contribute to layout */}
-  <span aria-hidden="true" style={{ visibility: "hidden", display: "block",
-    fontWeight: 700, whiteSpace: "nowrap", lineHeight: SLOT_H }}>
-    {WORDS[wordIndex]}
-  </span>
+// src/app/page.tsx
+import HeroIntro from "@/components/HeroIntro/HeroIntro"
 
-  <AnimatePresence mode="sync" initial={false}>
-    <motion.span
-      key={wordIndex}
-      initial={{ y: "110%", opacity: 0 }}
-      animate={{ y: "0%",   opacity: 1 }}
-      exit={{    y: "-110%", opacity: 0 }}
-      transition={{ duration: 0.2, ease: [0.2, 0, 0.2, 1] }}
-      style={{
-        position: "absolute", top: 0, left: 0,
-        display: "block", fontWeight: 700,
-        whiteSpace: "nowrap", lineHeight: SLOT_H,
-      }}
-    >
-      {WORDS[wordIndex]}
-    </motion.span>
-  </AnimatePresence>
-</div>
+export default function Home() {
+  return (
+    <main>
+      <HeroIntro />
+      {/* rest of page content */}
+    </main>
+  )
+}
 ```
 
 ---
 
-## Bug 4 — `motion.span` missing `position: absolute` causes layout thrash
+## 10. Dependencies
 
-### Why it matters even without `popLayout`
+```bash
+npm install gsap
+# Optional: GSAP registered plugins
+```
 
-Even when `mode="sync"` is used, without `position: absolute` on the `motion.span`
-there are briefly **two** `<span>` elements in the DOM during the transition —
-the exiting one and the entering one. Both are `display: block` in normal flow.
-They stack vertically, doubling the height of the slot, pushing `[data-loader-right]`
-("Portfolio.") to the right as the slot width jumps between word lengths. The
-`overflow: hidden` on the slot clips the bottom word entirely, making only one
-word visible at a time — no overlap, no carousel feel, just a hard cut.
+In `layout.tsx` or a global setup file, optionally register GSAP plugins:
 
-`position: absolute` removes both words from normal flow so they occupy the same
-`top: 0 / left: 0` position and animate past each other cleanly.
-
----
-
-## Summary of all changes
-
-| Location | Before | After | Reason |
-|----------|--------|-------|--------|
-| `useEffect` structure | Single effect, everything inside `document.fonts.ready.then()` | Two effects — GSAP effect + spin effect | `fonts.ready` timing breaks GSAP context and kills spin timer |
-| `document.fonts.ready` | Wraps all GSAP + timer code | Removed entirely | Not needed for transform/opacity tweens; caused silent DOM-not-ready failures |
-| `AnimatePresence mode` | `"popLayout"` | `"sync"` | `popLayout` collapses slot width by removing exiting word from flow |
-| `motion.span` style | No `position` set | `position: "absolute", top: 0, left: 0` | Without it two words stack in flow during transition, doubling slot height |
-| Slot — hidden sizer span | Not present | Added `visibility: hidden` span mirroring current word | Holds slot width while both animated spans are out of normal flow |
+```ts
+import { gsap } from "gsap"
+// import { ScrollTrigger } from "gsap/ScrollTrigger"
+// gsap.registerPlugin(ScrollTrigger)
+```
 
 ---
 
-## Files to edit
+## 11. Fonts Setup (Next.js `layout.tsx`)
 
-- `components/PageLoader.tsx` (or wherever the component lives) — apply all five
-  changes above. The fixed version is in `PageLoader.tsx` alongside this file.
+```tsx
+// src/app/layout.tsx
+import localFont from "next/font/local"
+
+const tiempos = localFont({
+  src: "../fonts/TiemposHeadline-Regular.woff2",
+  variable: "--font-tiempos",
+})
+
+const neueMontreal = localFont({
+  src: "../fonts/NueMontreal-Regular.woff2",
+  variable: "--font-neue",
+})
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${tiempos.variable} ${neueMontreal.variable}`}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Then in CSS:
+```css
+:root {
+  --font-heading: var(--font-tiempos), Georgia, serif;
+  --font-body: var(--font-neue), system-ui, sans-serif;
+}
+```
+
+---
+
+## 12. Key Animation Parameters — Quick Reference
+
+| Property         | Phase 1 (rise to stack) | Phase 2 (shuffle spread) |
+|------------------|-------------------------|--------------------------|
+| `duration`       | `0.65s`                 | `0.75s`                  |
+| `ease`           | `power3.out`            | `power2.out`             |
+| `stagger`        | `0` (simultaneous)      | `0.07` from center       |
+| `y` from         | `120vh`                 | already at 0             |
+| `opacity` from   | `0 → 1`                 | stays 1                  |
+| `rotation`       | `0`                     | per-image (-4 to +4 deg) |
+| `scale` from     | `0.9 → 1`               | stays 1                  |
+| `overlap`        | —                       | `-=0.2` (starts 0.2s early) |
+
+---
+
+## 13. Animation Timing Diagram
+0s    0.2s   0.4s   0.6s   0.8s   1.0s   1.2s   1.4s
+│──────────────────────────────────────────────────────
+│
+│  [Phase 1 — Rise]
+│  ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+│  (all images, simultaneous, y:120vh→0, opacity:0→1)
+│
+│               [Phase 2 — Shuffle spread]
+│               ░░░░░████████████████████████░░░░░
+│               (stagger 0.07s, spreads out to CSS positions + rotation)
+│
+│                             [Phase 3 — Heading color]
+│                             ░░░░░░░░███████████████
+│                             (color #888 → #111)
+│
+
+---
+
+## 14. Notes & Tips
+
+- **`will-change: transform, opacity`** on image wrappers ensures GPU compositing.
+- Use **`gsap.set()`** immediately (not in a `useEffect`) to avoid a flash of the pre-animation layout. Or set the initial CSS values directly in the stylesheet and let GSAP `from()` animate from there.
+- If images flicker on first paint, add `visibility: hidden` in CSS and use `gsap.set(el, { visibility: "visible" })` at the start of the timeline.
+- The **grayscale filter** can be animated off on hover per image for a nice interaction effect using `gsap.to(el, { filter: "grayscale(0%)", duration: 0.3 })`.
+- For a pixel-perfect match: the original uses **6–7 images**, all displayed at roughly **10–14% of the viewport width** in size.
+- The `stagger: { from: "center" }` option in GSAP makes cards that are visually closer to center fly out first, giving that organic "explosion from a single point" feel.
+
+That's the full breakdown. Here's a quick summary of what the animation actually does:
+The animation has 3 phases:
+
+Stack rise — all images start hidden below the viewport and rise simultaneously as a single pile to the center of the screen, stacked on top of each other over the "Hey," text (~0.65s, power3.out)
+Shuffle spread — the stacked pile explodes outward with a small stagger (0.07s each, from: "center") as each image flies to its predefined absolute position with a slight random rotation — like dealing cards (~0.75s, power2.out)
+Heading color shift — the "Hey," text transitions from grey to black as the images settle (~0.5s)
+
+The key GSAP insight is: set all images to the same center position initially with gsap.set(), then in Phase 2 use clearProps to remove those overrides so each image snaps to its own CSS-defined absolute position, driven by a stagger. That single pattern creates the entire "stack to shuffle" illusion.

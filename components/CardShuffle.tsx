@@ -1,171 +1,125 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import gsap from "gsap";
 
-// ─── config ───────────────────────────────────────────────────────────────────
-const PHOTOS = [
-    "1.jpg",
-    "2.jpg",
-    "3.jpg",
-    "4.jpg",
-    "5.jpg",
-    "6.jpg",
-    "7.jpg",
-    "8.jpg",
+const PHOTOS = ["1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg", "6.jpg", "7.jpg"];
+
+const CARD_W = 160;
+const CARD_H = 200;
+const PHOTO_OPACITY = 0.75;
+
+// Final positions for each card: where the card's top-left corner sits in the viewport
+const SCATTER_TARGETS = [
+    { leftPct: 0.10, topPct: 0.08 }, // phone   — top left
+    { leftPct: 0.60, topPct: 0.08 }, // laptop  — top right
+    { leftPct: 0.31, topPct: 0.40 }, // portrait — centre left, overlaps "H"
+    { leftPct: 0.09, topPct: 0.70 }, // poster  — bottom left
+    { leftPct: 0.74, topPct: 0.70 }, // face    — bottom right
+    { leftPct: 0.84, topPct: 0.42 }, // donut   — far-right mid
+    { leftPct: 0.5, topPct: 0.70 }, // donut   — far-right mid
 ];
 
-const DEAL_INTERVAL = 480;
-const DEAL_DELAY = 400;
-const CARD_W = 170;
-const CARD_H = 170;
-const PHOTO_OPACITY = 0.72;
-
-// ─── scatter system ───────────────────────────────────────────────────────────
-// viewport is split into a wide grid of cells
-// cards land anywhere in that grid with randomness within each cell
-// result: always fully scattered, never clustered
-
-const GRID_COLS = 4;
-const GRID_ROWS = 3;
-// how far the grid spreads from center (px) — covers full screen generously
-const SPREAD_X = 780;
-const SPREAD_Y = 340;
-// how much random offset within each cell
-const JITTER_X = 25;
-const JITTER_Y = 18;
-const MAX_ROTATE = 12;
-
-function buildGrid() {
-    const cells: { cx: number; cy: number }[] = [];
-    for (let row = 0; row < GRID_ROWS; row++) {
-        for (let col = 0; col < GRID_COLS; col++) {
-            cells.push({
-                cx: -SPREAD_X + (col / (GRID_COLS - 1)) * SPREAD_X * 2,
-                cy: -SPREAD_Y + (row / (GRID_ROWS - 1)) * SPREAD_Y * 2,
-            });
-        }
-    }
-    return cells;
-}
-
-function generatePositions(count: number) {
-    const grid = buildGrid();
-    // shuffle grid cells so every reload is different
-    const shuffled = [...grid].sort(() => Math.random() - 0.5);
-    // if more photos than cells, wrap around
-    return Array.from({ length: count }, (_, i) => {
-        const cell = shuffled[i % shuffled.length];
-        return {
-            x: cell.cx + (Math.random() - 0.5) * JITTER_X * 2,
-            y: cell.cy + (Math.random() - 0.5) * JITTER_Y * 2,
-            rotate: (Math.random() - 0.5) * MAX_ROTATE * 2,
-        };
-    });
+// Compute GSAP x/y offsets from the stacked centre position
+function buildOffsets() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    return SCATTER_TARGETS.map((t) => ({
+        x: (t.leftPct - 0.5) * vw + CARD_W / 2,
+        y: (t.topPct - 0.5) * vh + CARD_H / 2,
+    }));
 }
 
 interface CardShuffleProps {
     className?: string;
+    headingRef?: React.RefObject<HTMLHeadingElement | null>;
+    shouldAnimate?: boolean;
 }
 
-export default function CardShuffle({ className = "" }: CardShuffleProps) {
+export default function CardShuffle({
+    className = "",
+    headingRef,
+    shouldAnimate = false,
+}: CardShuffleProps) {
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-    const [dealt, setDealt] = useState<boolean[]>(Array(PHOTOS.length).fill(false));
-    const positions = useRef(generatePositions(PHOTOS.length));
 
+    // Push cards below the screen on mount
     useEffect(() => {
-        const cards = cardRefs.current;
+        const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
+        if (!cards.length) return;
+        cards.forEach((card, i) => gsap.set(card, { zIndex: PHOTOS.length - i }));
+        gsap.set(cards, { x: 0, y: window.innerHeight * 1.1, rotate: 0, scale: 0.9, opacity: 0 });
+    }, []);
+
+    // 3-phase animation once the loader clears
+    useEffect(() => {
+        if (!shouldAnimate) return;
+        const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
         if (!cards.length) return;
 
-        cards.forEach((card, i) => {
-            if (!card) return;
-            gsap.set(card, {
-                x: 0,
-                y: 0,
-                rotate: (i - Math.floor(PHOTOS.length / 2)) * 0.8,
-                scale: 1 - i * 0.008,
-                zIndex: PHOTOS.length - i,
-                opacity: 1,
-            });
+        const offsets = buildOffsets();
+        const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+        // Phase 1: all cards rise to centre simultaneously
+        tl.to(cards, {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 0.65,
         });
 
-        const timers: ReturnType<typeof setTimeout>[] = [];
+        // Phase 2: scatter to viewport positions with stagger
+        tl.to(
+            cards,
+            {
+                x: (i: number) => offsets[i].x,
+                y: (i: number) => offsets[i].y,
+                duration: 0.75,
+                ease: "power2.out",
+                stagger: { each: 0.07, from: "center" },
+            },
+            "-=0.2"
+        );
 
-        PHOTOS.forEach((_, i) => {
-            const t = setTimeout(() => {
-                const card = cards[i];
-                if (!card) return;
+        // Phase 3: heading grey → near-black
+        if (headingRef?.current) {
+            tl.to(
+                headingRef.current,
+                { color: "#1a1a1a", duration: 0.5, ease: "power2.out" },
+                "-=0.4"
+            );
+        }
 
-                const pos = positions.current[i];
-
-                gsap.timeline()
-                    .to(card, {
-                        y: -14,
-                        scale: 1.015,
-                        duration: 0.35,
-                        ease: "sine.out",
-                    })
-                    .to(card, {
-                        x: pos.x,
-                        y: pos.y,
-                        rotate: pos.rotate,
-                        scale: 1,
-                        duration: 0.85,
-                        ease: "power1.inOut",
-                        zIndex: PHOTOS.length + i,
-                    })
-                    .to(card, {
-                        y: pos.y + 5,
-                        rotate: pos.rotate - 0.4,
-                        duration: 0.4,
-                        ease: "sine.inOut",
-                    }, "-=0.25");
-
-                setDealt(prev => {
-                    const next = [...prev];
-                    next[i] = true;
-                    return next;
-                });
-            }, DEAL_DELAY + i * DEAL_INTERVAL);
-
-            timers.push(t);
-        });
-
-        return () => timers.forEach(clearTimeout);
-    }, []);
+        return () => { tl.kill(); };
+    }, [shouldAnimate]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div
             className={className}
             style={{
-                position: "relative",
-                width: "100%",
-                minHeight: "700px",
+                position: "absolute",
+                inset: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "visible",
             }}
         >
+            {/* All cards start stacked at centre; GSAP moves them to their scattered positions */}
             <div style={{ position: "relative", width: CARD_W, height: CARD_H }}>
                 {PHOTOS.map((src, i) => (
                     <div
                         key={i}
-                        ref={el => { cardRefs.current[i] = el; }}
+                        ref={(el) => { cardRefs.current[i] = el; }}
                         style={{
                             position: "absolute",
                             top: 0,
                             left: 0,
                             width: CARD_W,
                             height: CARD_H,
-                            borderRadius: "0px",
                             overflow: "hidden",
-                            boxShadow: dealt[i]
-                                ? "0 16px 48px rgba(0,0,0,0.18), 0 2px 10px rgba(0,0,0,0.08)"
-                                : "0 4px 16px rgba(0,0,0,0.14)",
-                            cursor: "default",
-                            willChange: "transform",
-                            transition: "box-shadow 0.6s ease",
+                            opacity: 0,
+                            willChange: "transform, opacity",
                         }}
                     >
                         <img
@@ -177,6 +131,7 @@ export default function CardShuffle({ className = "" }: CardShuffleProps) {
                                 objectFit: "cover",
                                 display: "block",
                                 opacity: PHOTO_OPACITY,
+                                filter: "grayscale(100%)",
                                 pointerEvents: "none",
                                 userSelect: "none",
                             }}
