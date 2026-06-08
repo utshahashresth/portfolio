@@ -33,7 +33,7 @@ export default function IntroSection() {
                         ease: "power3.out",
                         stagger: 0.15,
                         scrollTrigger: {
-                            containerAnimation: hscroll,
+                            containerAnimation: hscroll.animation ?? undefined,
                             trigger: section,
                             start: "left 75%",
                             end: "left 25%",
