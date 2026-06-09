@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 
-const PHOTOS = ["1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg", "6.jpg", "7.jpg"];
+const VIDEOS = ["/videos/1.mp4", "/videos/2.mp4", "/videos/3.mp4", "/videos/4.mp4", "/videos/5.mp4", "/videos/6.mp4", "/videos/7.mp4"];
 
 const CARD_W = 160;
 const CARD_H = 200;
@@ -42,13 +42,17 @@ export default function CardShuffle({
     shouldAnimate = false,
 }: CardShuffleProps) {
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+    const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
-    // Push cards below the screen on mount
+    // Push cards below the screen on mount; keep videos paused until animation fires
     useEffect(() => {
         const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
         if (!cards.length) return;
-        cards.forEach((card, i) => gsap.set(card, { zIndex: PHOTOS.length - i }));
+        cards.forEach((card, i) => gsap.set(card, { zIndex: VIDEOS.length - i }));
         gsap.set(cards, { x: 0, y: window.innerHeight * 1.1, rotate: 0, scale: 0.9, opacity: 0 });
+
+        // Pause all videos immediately — they'll resume once the shuffle completes
+        videoRefs.current.forEach((v) => v?.pause());
     }, []);
 
     // 3-phase animation once the loader clears
@@ -77,6 +81,10 @@ export default function CardShuffle({
                 duration: 0.75,
                 ease: "power2.out",
                 stagger: { each: 0.07, from: "center" },
+                // Resume all videos once every card has landed
+                onComplete: () => {
+                    videoRefs.current.forEach((v) => v?.play().catch(() => { }));
+                },
             },
             "-=0.2"
         );
@@ -107,7 +115,7 @@ export default function CardShuffle({
         >
             {/* All cards start stacked at centre; GSAP moves them to their scattered positions */}
             <div style={{ position: "relative", width: CARD_W, height: CARD_H }}>
-                {PHOTOS.map((src, i) => (
+                {VIDEOS.map((src, i) => (
                     <div
                         key={i}
                         ref={(el) => { cardRefs.current[i] = el; }}
@@ -122,9 +130,13 @@ export default function CardShuffle({
                             willChange: "transform, opacity",
                         }}
                     >
-                        <img
+                        <video
+                            ref={(el) => { videoRefs.current[i] = el; }}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
                             src={src}
-                            alt={`Photo ${i + 1}`}
                             style={{
                                 width: "100%",
                                 height: "100%",

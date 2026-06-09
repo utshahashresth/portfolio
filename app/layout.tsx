@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import PageLoaderProvider from "@/components/PageLoaderProvider";
 
@@ -13,10 +14,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const playfairDisplay = Playfair_Display({
+const romanSerif = localFont({
+  src: [
+    { path: "../public/fonts/RomanSerif.ttf", weight: "400", style: "normal" },
+    { path: "../public/fonts/RomanSerif-Oblique.ttf", weight: "400", style: "oblique" },
+  ],
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["700"],
 });
 
 export const metadata: Metadata = {
@@ -32,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${romanSerif.variable} antialiased`}
     >
       <body>
         <PageLoaderProvider>{children}</PageLoaderProvider>

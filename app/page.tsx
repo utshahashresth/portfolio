@@ -69,7 +69,7 @@ export default function Home() {
                   userSelect: "none",
                 }}
               >
-                Hey,
+                Utshaha Shrestha
               </h1>
             </div>
 
