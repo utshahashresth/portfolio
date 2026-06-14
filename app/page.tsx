@@ -1,15 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import CardShuffle from "@/components/CardShuffle";
-import PageLoader from "@/components/PageLoader";
 import HorizontalScroll from "@/components/HorizontalScroll";
 import IntroSection from "@/components/IntroSection";
 import WorksSection from "@/components/WorksSection";
+import { usePageLoader } from "@/components/PageLoaderContext";
 
 export default function Home() {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [animateCards, setAnimateCards] = useState(false);
+  const { done: animateCards } = usePageLoader();
 
   return (
     <>
@@ -41,6 +41,7 @@ export default function Home() {
             }}
           >
             <nav
+              className="hero-nav"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -57,22 +58,27 @@ export default function Home() {
               <span style={{ fontWeight: 400 }}>Work, Archive</span>
             </nav>
 
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
               <h1
                 ref={headingRef}
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontSize: "clamp(5rem, 10vw, 11rem)",
+                  fontSize: "clamp(2.5rem, 10vw, 6rem)",
                   lineHeight: 0.9,
                   letterSpacing: "-0.02em",
                   color: "#888",
                   userSelect: "none",
+                  display: "flex",
+                  flexDirection: "column",
+
+
                 }}
               >
-                Utshaha Shrestha
+
+                <span>utshaha.</span>
+
               </h1>
             </div>
-
             <div style={{ pointerEvents: "auto" }}>
               <div
                 style={{
@@ -96,9 +102,6 @@ export default function Home() {
         <WorksSection />
 
       </HorizontalScroll>
-
-      {/* PageLoader sits outside the scroll track so it overlays everything */}
-      <PageLoader onComplete={() => setAnimateCards(true)} />
     </>
   );
 }

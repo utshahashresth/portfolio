@@ -17,30 +17,49 @@ export default function IntroSection() {
         const els = [labelRef.current, headingRef.current, bodyRef.current].filter(Boolean) as HTMLElement[];
         if (!section || !els.length) return;
 
-        // Wait a tick so HorizontalScroll's ScrollTrigger is registered first
         const timeout = setTimeout(() => {
             const hscroll = ScrollTrigger.getById("hscroll");
-            if (!hscroll) return;
 
             const ctx = gsap.context(() => {
-                gsap.fromTo(
-                    els,
-                    { x: 60, opacity: 0 },
-                    {
-                        x: 0,
-                        opacity: 1,
-                        duration: 1,
-                        ease: "power3.out",
-                        stagger: 0.15,
-                        scrollTrigger: {
-                            containerAnimation: hscroll.animation ?? undefined,
-                            trigger: section,
-                            start: "left 75%",
-                            end: "left 25%",
-                            toggleActions: "play none none reverse",
-                        },
-                    }
-                );
+                if (hscroll) {
+                    // Desktop: animate as panel scrolls into view horizontally
+                    gsap.fromTo(
+                        els,
+                        { x: 60, opacity: 0 },
+                        {
+                            x: 0,
+                            opacity: 1,
+                            duration: 1,
+                            ease: "power3.out",
+                            stagger: 0.15,
+                            scrollTrigger: {
+                                containerAnimation: hscroll.animation ?? undefined,
+                                trigger: section,
+                                start: "left 75%",
+                                end: "left 25%",
+                                toggleActions: "play none none reverse",
+                            },
+                        }
+                    );
+                } else {
+                    // Mobile: animate as panel scrolls into view vertically
+                    gsap.fromTo(
+                        els,
+                        { y: 40, opacity: 0 },
+                        {
+                            y: 0,
+                            opacity: 1,
+                            duration: 0.9,
+                            ease: "power3.out",
+                            stagger: 0.15,
+                            scrollTrigger: {
+                                trigger: section,
+                                start: "top 80%",
+                                toggleActions: "play none none reverse",
+                            },
+                        }
+                    );
+                }
             });
 
             return () => ctx.revert();

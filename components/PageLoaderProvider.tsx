@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Cormorant_Garamond } from "next/font/google";
 import PageLoader from "./PageLoader";
+import { PageLoaderContext } from "./PageLoaderContext";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -19,7 +20,7 @@ export default function PageLoaderProvider({
   const [done, setDone] = useState(false);
 
   return (
-    <>
+    <PageLoaderContext.Provider value={{ done }}>
       {!done && (
         <PageLoader
           fontClassName={cormorant.className}
@@ -27,6 +28,6 @@ export default function PageLoaderProvider({
         />
       )}
       {children}
-    </>
+    </PageLoaderContext.Provider>
   );
 }

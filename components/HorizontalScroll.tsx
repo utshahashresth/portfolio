@@ -14,6 +14,7 @@ export default function HorizontalScroll({ children }: { children: React.ReactNo
         const track = trackRef.current;
         const wrap = wrapRef.current;
         if (!track || !wrap) return;
+        if (window.innerWidth < 768) return;
 
         const ctx = gsap.context(() => {
             const scrollDist = () => track.scrollWidth - window.innerWidth;
@@ -26,7 +27,7 @@ export default function HorizontalScroll({ children }: { children: React.ReactNo
                     trigger: wrap,
                     start: "top top",
                     end: () => `+=${scrollDist()}`,
-                    scrub: 1.2,        // ← higher = smoother/lazier follow (was 1)
+                    scrub: 1.2,
                     pin: true,
                     anticipatePin: 1,
                     invalidateOnRefresh: true,
@@ -39,19 +40,12 @@ export default function HorizontalScroll({ children }: { children: React.ReactNo
 
     // Re-measure after first paint; layout shifts from fonts/images can skew scrollWidth
     useEffect(() => {
-        ScrollTrigger.refresh();
+        if (window.innerWidth >= 768) ScrollTrigger.refresh();
     }, []);
 
     return (
-        <div ref={wrapRef} style={{ overflow: "hidden", height: "100vh" }}>
-            <div
-                ref={trackRef}
-                style={{
-                    display: "flex",
-                    flexWrap: "nowrap",
-                    willChange: "transform",
-                }}
-            >
+        <div ref={wrapRef} className="h-scroll-wrap">
+            <div ref={trackRef} className="h-scroll-track">
                 {children}
             </div>
         </div>

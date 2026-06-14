@@ -34,6 +34,11 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
   const overlayRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const [wordIndex, setWordIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => { setMounted(true); }, []);
 
   // ── Effect 1: GSAP — entrance, progress bar, fade-out ─────────────────────
   useEffect(() => {
@@ -68,13 +73,14 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
         delay: ANIM_BUDGET,
         onComplete: () => {
           overlay.style.display = "none";
-          onComplete?.();
+          onCompleteRef.current?.();
         },
       });
     }, overlay);
 
     return () => ctx.revert();
-  }, [onComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Effect 2: word spin ────────────────────────────────────────────────────
   useEffect(() => {
@@ -146,13 +152,29 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
             {WORDS[wordIndex]}
           </span>
 
-          <AnimatePresence mode="sync" initial={false}>
-            <motion.span
-              key={wordIndex}
-              initial={{ y: "110%", opacity: 0 }}
-              animate={{ y: "0%", opacity: 1 }}
-              exit={{ y: "-110%", opacity: 0 }}
-              transition={{ duration: WORD_IN_S, ease: [0.2, 0, 0.2, 1] }}
+          {mounted ? (
+            <AnimatePresence mode="sync" initial={false}>
+              <motion.span
+                key={wordIndex}
+                initial={{ y: "110%", opacity: 0 }}
+                animate={{ y: "0%", opacity: 1 }}
+                exit={{ y: "-110%", opacity: 0 }}
+                transition={{ duration: WORD_IN_S, ease: [0.2, 0, 0.2, 1] }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  display: "block",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  lineHeight: SLOT_H,
+                }}
+              >
+                {WORDS[wordIndex]}
+              </motion.span>
+            </AnimatePresence>
+          ) : (
+            <span
               style={{
                 position: "absolute",
                 top: 0,
@@ -163,9 +185,9 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
                 lineHeight: SLOT_H,
               }}
             >
-              {WORDS[wordIndex]}
-            </motion.span>
-          </AnimatePresence>
+              {WORDS[0]}
+            </span>
+          )}
         </div>
 
         <span data-loader-right="" style={{ fontWeight: 300 }}>

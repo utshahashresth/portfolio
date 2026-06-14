@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 
-const VIDEOS = ["/videos/1.mp4", "/videos/2.mp4", "/videos/3.mp4", "/videos/4.mp4", "/videos/5.mp4", "/videos/6.mp4", "/videos/7.mp4"];
+const VIDEOS = ["/videos/1.mp4", "/videos/2.mp4", "/videos/5.mp4", "/videos/4.mp4", "/videos/3.mp4", "/videos/6.mp4", "/videos/7.mp4"];
 
 const CARD_W = 160;
 const CARD_H = 200;
@@ -44,20 +44,18 @@ export default function CardShuffle({
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
-    // Push cards below the screen on mount; keep videos paused until animation fires
+    // Push cards below the screen on mount
     useEffect(() => {
+        if (window.innerWidth < 768) return;
         const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
         if (!cards.length) return;
         cards.forEach((card, i) => gsap.set(card, { zIndex: VIDEOS.length - i }));
         gsap.set(cards, { x: 0, y: window.innerHeight * 1.1, rotate: 0, scale: 0.9, opacity: 0 });
-
-        // Pause all videos immediately — they'll resume once the shuffle completes
-        videoRefs.current.forEach((v) => v?.pause());
     }, []);
 
     // 3-phase animation once the loader clears
     useEffect(() => {
-        if (!shouldAnimate) return;
+        if (!shouldAnimate || window.innerWidth < 768) return;
         const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
         if (!cards.length) return;
 
@@ -81,10 +79,6 @@ export default function CardShuffle({
                 duration: 0.75,
                 ease: "power2.out",
                 stagger: { each: 0.07, from: "center" },
-                // Resume all videos once every card has landed
-                onComplete: () => {
-                    videoRefs.current.forEach((v) => v?.play().catch(() => { }));
-                },
             },
             "-=0.2"
         );
@@ -103,7 +97,7 @@ export default function CardShuffle({
 
     return (
         <div
-            className={className}
+            className={`card-shuffle${className ? ` ${className}` : ""}`}
             style={{
                 position: "absolute",
                 inset: 0,
