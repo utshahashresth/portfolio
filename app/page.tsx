@@ -40,25 +40,20 @@ export default function Home() {
               pointerEvents: "none",
             }}
           >
-            <nav
-              className="hero-nav"
+            <div
               style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "11px",
-                letterSpacing: "0.01em",
-                color: "#1a1a1a",
-                pointerEvents: "auto",
+                justifyContent: "center",
+                alignItems: "center",
+                textAlign: "center",
+                marginLeft: "40px"
               }}
             >
-              <span style={{ fontWeight: 500 }}>Utshaha Shrestha</span>
-              <span style={{ color: "#888", fontWeight: 400 }}>Frontend Developer</span>
-              <span style={{ fontWeight: 400 }}>Work, Archive</span>
-            </nav>
-
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
               <h1
                 ref={headingRef}
                 style={{
@@ -70,19 +65,22 @@ export default function Home() {
                   userSelect: "none",
                   display: "flex",
                   flexDirection: "column",
-
-
                 }}
               >
-
-                <span>utshaha.</span>
-
+                <span style={{ fontFamily: "var(--font-roboto-mono)" }}>utshaha.</span>
               </h1>
             </div>
-            <div style={{ pointerEvents: "auto" }}>
+            <div
+              style={{
+                position: "fixed",
+                bottom: "20px",
+                left: "20px",
+                pointerEvents: "auto",
+              }}
+            >
               <div
                 style={{
-                  fontFamily: "var(--font-geist-sans)",
+                  fontFamily: "var(--font-roboto-mono)",
                   fontSize: "11px",
                   lineHeight: 1.5,
                   color: "#1a1a1a",
