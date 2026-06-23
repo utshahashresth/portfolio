@@ -36,11 +36,13 @@ export default function Home() {
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: "28px 32px",
+              padding: "20px",
               pointerEvents: "none",
+              boxSizing: "border-box",
             }}
           >
             <div
+              className="hero-heading-wrap"
               style={{
                 position: "fixed",
                 top: 0,
@@ -51,26 +53,58 @@ export default function Home() {
                 justifyContent: "center",
                 alignItems: "center",
                 textAlign: "center",
-                marginLeft: "40px"
               }}
             >
-              <h1
-                ref={headingRef}
-                style={{
+              <div ref={headingRef} style={{ userSelect: "none", color: "#888" }} className="ml-32">
+                {/* "UTSHAHA'S" small label above */}
+                <p style={{
+                  fontFamily: "var(--font-roboto-mono)",
+                  fontSize: "clamp(0.55rem, 1.1vw, 0.85rem)",
+                  fontWeight: 500,
+                  letterSpacing: "0.1em",
+                  color: "inherit",
+                  marginBottom: "0.15em",
+                  opacity: 0.7,
+                  textAlign: "left",
+                }}>UTSHAHA&apos;S</p>
+
+                {/* PORT + 2026 row */}
+                <div style={{ position: "relative", display: "flex", alignItems: "flex-end" }}>
+                  <h1 style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "clamp(3.5rem, 14vw, 10rem)",
+                    lineHeight: 0.88,
+                    letterSpacing: "-0.02em",
+                    color: "inherit",
+                    fontWeight: 700,
+                    margin: 0,
+                  }}>PORT</h1>
+                  <span style={{
+                    fontFamily: "var(--font-roboto-mono)",
+                    fontSize: "clamp(0.6rem, 1.3vw, 1rem)",
+                    fontWeight: 400,
+                    letterSpacing: "0.04em",
+                    color: "inherit",
+                    opacity: 0.7,
+                    marginLeft: "0.4em",
+                    marginBottom: "0.3em",
+                  }}>2026</span>
+                </div>
+
+                {/* FOLIO row */}
+                <h1 style={{
                   fontFamily: "var(--font-display)",
-                  fontSize: "clamp(2.5rem, 10vw, 6rem)",
-                  lineHeight: 0.9,
+                  fontSize: "clamp(3.5rem, 14vw, 10rem)",
+                  lineHeight: 0.88,
                   letterSpacing: "-0.02em",
-                  color: "#888",
-                  userSelect: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <span style={{ fontFamily: "var(--font-roboto-mono)" }}>utshaha.</span>
-              </h1>
+                  color: "inherit",
+                  fontWeight: 700,
+                  margin: 0,
+                }}>FOLIO</h1>
+              </div>
             </div>
             <div
+              className="hero-meta"
               style={{
                 position: "fixed",
                 bottom: "20px",

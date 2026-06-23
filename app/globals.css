@@ -47,12 +47,16 @@ body {
   .h-scroll-track {
     flex-direction: column;
   }
-  /* Cards are decorative; hide on mobile to avoid clutter */
-  .card-shuffle {
-    display: none;
-  }
   /* Shrink nav text so three items fit on small viewports */
   .hero-nav {
     font-size: 9px !important;
+  }
+  /* Confine hero heading/meta to the hero section so they don't overlay later panels */
+  .hero-heading-wrap {
+    position: absolute !important;
+    margin-left: 0 !important;
+  }
+  .hero-meta {
+    position: absolute !important;
   }
 }

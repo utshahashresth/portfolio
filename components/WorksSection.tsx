@@ -3,19 +3,21 @@ export default function WorksSection() {
         <section
             style={{
                 width: "100vw",
+                minHeight: "100vh",
                 height: "100vh",
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
-                padding: "0 10vw",
+                padding: "80px clamp(20px, 10vw, 10vw)",
                 background: "#1a1a1a",
+                boxSizing: "border-box",
             }}
         >
-            <div style={{ maxWidth: 700 }}>
+            <div style={{ maxWidth: 700, width: "100%" }}>
                 <p
                     style={{
                         fontFamily: "var(--font-geist-sans)",
-                        fontSize: "clamp(1rem, 1.5vw, 1.2rem)",
+                        fontSize: "clamp(0.7rem, 1.5vw, 1.2rem)",
                         color: "#555",
                         letterSpacing: "0.05em",
                         textTransform: "uppercase",
@@ -27,7 +29,7 @@ export default function WorksSection() {
                 <h2
                     style={{
                         fontFamily: "var(--font-display)",
-                        fontSize: "clamp(2.5rem, 5vw, 4.5rem)",
+                        fontSize: "clamp(2rem, 5vw, 4.5rem)",
                         lineHeight: 1.05,
                         letterSpacing: "-0.02em",
                         color: "#F8F3F4",
@@ -44,15 +46,16 @@ export default function WorksSection() {
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            alignItems: "center",
+                            alignItems: "baseline",
                             borderTop: "1px solid #333",
                             padding: "1.25rem 0",
+                            gap: "1rem",
                         }}
                     >
                         <span
                             style={{
                                 fontFamily: "var(--font-display)",
-                                fontSize: "clamp(1.1rem, 2vw, 1.5rem)",
+                                fontSize: "clamp(1rem, 2vw, 1.5rem)",
                                 color: "#F8F3F4",
                                 letterSpacing: "-0.01em",
                             }}
@@ -66,6 +69,7 @@ export default function WorksSection() {
                                 color: "#555",
                                 letterSpacing: "0.05em",
                                 textTransform: "uppercase",
+                                flexShrink: 0,
                             }}
                         >
                             2026

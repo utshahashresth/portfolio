@@ -79,7 +79,7 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
     }, overlay);
 
     return () => ctx.revert();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Effect 2: word spin ────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ export default function PageLoader({ fontClassName = "", onComplete }: PageLoade
           display: "flex",
           alignItems: "center",
           gap: "0.28em",
-          fontSize: "3rem",
+          fontSize: "clamp(1.2rem, 4.5vw, 3rem)",
           color: "#232323",
           letterSpacing: "-0.025em",
           lineHeight: 1,

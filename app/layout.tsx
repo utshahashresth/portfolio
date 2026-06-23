@@ -59,14 +59,25 @@ export default function RootLayout({
             fontSize: "11px",
             letterSpacing: "0.01em",
             color: "#1a1a1a",
-            padding: "28px 32px",
+            padding: "20px 20px",
             pointerEvents: "none",
           }}
         >
           <span style={{ fontWeight: 500, pointerEvents: "auto" }}>Utshaha Shrestha</span>
-          <span style={{ color: "#888", fontWeight: 400, pointerEvents: "auto" }}>Frontend Developer</span>
+          <span className="nav-role" style={{ color: "#888", fontWeight: 400, pointerEvents: "auto" }}>Frontend Developer</span>
           <span style={{ fontWeight: 400, pointerEvents: "auto" }}>Work, Archive</span>
         </nav>
+        <style>{`
+          @media (max-width: 480px) {
+            .hero-nav {
+              padding: 16px !important;
+              gap: 4px;
+            }
+            .nav-role {
+              display: none;
+            }
+          }
+        `}</style>
         <PageLoaderProvider>{children}</PageLoaderProvider>
       </body>
     </html>

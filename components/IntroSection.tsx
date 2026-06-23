@@ -73,15 +73,17 @@ export default function IntroSection() {
             ref={sectionRef}
             style={{
                 width: "100vw",
+                minHeight: "100vh",
                 height: "100vh",
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
-                padding: "0 10vw",
+                padding: "80px clamp(20px, 10vw, 10vw)",
                 background: "#F8F3F4",
+                boxSizing: "border-box",
             }}
         >
-            <div style={{ maxWidth: 600 }}>
+            <div style={{ maxWidth: 600, width: "100%" }}>
                 <p
                     ref={labelRef}
                     style={{
