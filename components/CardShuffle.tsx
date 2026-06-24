@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 
 const VIDEOS = ["/videos/1.mp4", "/videos/2.mp4", "/videos/5.mp4", "/videos/4.mp4", "/videos/3.mp4", "/videos/6.mp4", "/videos/7.mp4"];
@@ -11,31 +11,26 @@ const MOBILE_CARD_W = 100;
 const MOBILE_CARD_H = 125;
 const PHOTO_OPACITY = 0.75;
 
-// Final positions for each card: where the card's top-left corner sits in the viewport
 const SCATTER_TARGETS = [
-    { leftPct: 0.10, topPct: 0.08 }, // phone   — top left
-    { leftPct: 0.60, topPct: 0.08 }, // laptop  — top right
-    { leftPct: 0.31, topPct: 0.40 }, // portrait — centre left, overlaps "H"
-    { leftPct: 0.09, topPct: 0.70 }, // poster  — bottom left
-    { leftPct: 0.74, topPct: 0.70 }, // face    — bottom right
-    { leftPct: 0.84, topPct: 0.42 }, // donut   — far-right mid
-    { leftPct: 0.5, topPct: 0.70 }, // centre bottom
+    { leftPct: 0.10, topPct: 0.08 },
+    { leftPct: 0.60, topPct: 0.08 },
+    { leftPct: 0.31, topPct: 0.40 },
+    { leftPct: 0.09, topPct: 0.70 },
+    { leftPct: 0.74, topPct: 0.70 },
+    { leftPct: 0.84, topPct: 0.42 },
+    { leftPct: 0.5, topPct: 0.70 },
 ];
 
-// Compact positions for mobile — verified safe down to 320×568 with 100×125 cards
 const MOBILE_SCATTER_TARGETS = [
-    { leftPct: 0.04, topPct: 0.05 }, // top-left
-    { leftPct: 0.60, topPct: 0.04 }, // top-right
-    { leftPct: 0.02, topPct: 0.36 }, // mid-left
-    { leftPct: 0.64, topPct: 0.34 }, // mid-right
-    { leftPct: 0.24, topPct: 0.58 }, // lower-centre-left
-    { leftPct: 0.60, topPct: 0.62 }, // lower-right
-    { leftPct: 0.04, topPct: 0.68 }, // bottom-left
+    { leftPct: 0.04, topPct: 0.05 },
+    { leftPct: 0.60, topPct: 0.04 },
+    { leftPct: 0.02, topPct: 0.36 },
+    { leftPct: 0.64, topPct: 0.34 },
+    { leftPct: 0.24, topPct: 0.58 },
+    { leftPct: 0.60, topPct: 0.62 },
+    { leftPct: 0.04, topPct: 0.68 },
 ];
 
-// Compute GSAP x/y offsets from the stacked centre position.
-// Formula uses the DOM stack-div size (CARD_W/CARD_H) as anchor — card rendered
-// size is set separately via gsap.set and doesn't affect this calculation.
 function buildOffsets() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -62,8 +57,11 @@ export default function CardShuffle({
 }: CardShuffleProps) {
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+    const scatteredRef = useRef(false);
+    // Store the base y offset per card so hover lift adds on top
+    const baseOffsetsRef = useRef<{ x: number; y: number }[]>([]);
 
-    // Push cards below the screen on mount; resize to mobile dimensions if needed
+    // Push cards below the screen on mount
     useEffect(() => {
         const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
         if (!cards.length) return;
@@ -81,9 +79,11 @@ export default function CardShuffle({
         if (!cards.length) return;
 
         const offsets = buildOffsets();
+        baseOffsetsRef.current = offsets;
+
         const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-        // Phase 1: all cards rise to centre simultaneously
+        // Phase 1: rise to centre
         tl.to(cards, {
             y: 0,
             opacity: 1,
@@ -91,7 +91,7 @@ export default function CardShuffle({
             duration: 0.65,
         });
 
-        // Phase 2: scatter to viewport positions with stagger
+        // Phase 2: scatter
         tl.to(
             cards,
             {
@@ -100,11 +100,12 @@ export default function CardShuffle({
                 duration: 0.75,
                 ease: "power2.out",
                 stagger: { each: 0.07, from: "center" },
+                onComplete: () => { scatteredRef.current = true; },
             },
             "-=0.2"
         );
 
-        // Phase 3: heading grey → near-black
+        // Phase 3: heading colour reveal
         if (headingRef?.current) {
             tl.to(
                 headingRef.current,
@@ -115,6 +116,42 @@ export default function CardShuffle({
 
         return () => { tl.kill(); };
     }, [shouldAnimate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Hover handlers — lift card up, reveal colour, restore on leave
+    function handleEnter(i: number) {
+        if (!scatteredRef.current) return;
+        const card = cardRefs.current[i];
+        if (!card) return;
+        const base = baseOffsetsRef.current[i];
+        gsap.to(card, {
+            y: base.y - 10,
+            scale: 1.04,
+            filter: "drop-shadow(0 12px 24px rgba(0,0,0,0.18))",
+            duration: 0.3,
+            ease: "power2.out",
+            overwrite: "auto",
+        });
+        // also de-greyscale on hover
+        const video = videoRefs.current[i];
+        if (video) gsap.to(video, { filter: "grayscale(0%)", opacity: 1, duration: 0.3, ease: "power2.out" });
+    }
+
+    function handleLeave(i: number) {
+        if (!scatteredRef.current) return;
+        const card = cardRefs.current[i];
+        if (!card) return;
+        const base = baseOffsetsRef.current[i];
+        gsap.to(card, {
+            y: base.y,
+            scale: 1,
+            filter: "drop-shadow(0 0px 0px rgba(0,0,0,0))",
+            duration: 0.4,
+            ease: "power3.out",
+            overwrite: "auto",
+        });
+        const video = videoRefs.current[i];
+        if (video) gsap.to(video, { filter: "grayscale(100%)", opacity: PHOTO_OPACITY, duration: 0.4, ease: "power3.out" });
+    }
 
     return (
         <div
@@ -128,12 +165,13 @@ export default function CardShuffle({
                 overflow: "visible",
             }}
         >
-            {/* All cards start stacked at centre; GSAP moves them to their scattered positions */}
             <div style={{ position: "relative", width: CARD_W, height: CARD_H }}>
                 {VIDEOS.map((src, i) => (
                     <div
                         key={i}
                         ref={(el) => { cardRefs.current[i] = el; }}
+                        onMouseEnter={() => handleEnter(i)}
+                        onMouseLeave={() => handleLeave(i)}
                         style={{
                             position: "absolute",
                             top: 0,
@@ -142,7 +180,8 @@ export default function CardShuffle({
                             height: CARD_H,
                             overflow: "hidden",
                             opacity: 0,
-                            willChange: "transform, opacity",
+                            willChange: "transform, opacity, filter",
+                            cursor: "none",
                         }}
                     >
                         <video

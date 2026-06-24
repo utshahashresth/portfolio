@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import PageLoaderProvider from "@/components/PageLoaderProvider";
+import NavBar from "@/components/NavBar";
+import CustomCursor from "@/components/CustomCursor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,41 +45,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${romanSerif.variable} ${robotoMono.variable} antialiased`}
     >
-      <body>
-        <nav
-          className="hero-nav"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            fontFamily: "var(--font-roboto-mono)",
-            fontSize: "11px",
-            letterSpacing: "0.01em",
-            color: "#1a1a1a",
-            padding: "20px 20px",
-            pointerEvents: "none",
-          }}
-        >
-          <span style={{ fontWeight: 500, pointerEvents: "auto" }}>Utshaha Shrestha</span>
-          <span className="nav-role" style={{ color: "#888", fontWeight: 400, pointerEvents: "auto" }}>Frontend Developer</span>
-          <span style={{ fontWeight: 400, pointerEvents: "auto" }}>Work, Archive</span>
-        </nav>
-        <style>{`
-          @media (max-width: 480px) {
-            .hero-nav {
-              padding: 16px !important;
-              gap: 4px;
-            }
-            .nav-role {
-              display: none;
-            }
-          }
-        `}</style>
+      <body style={{ cursor: "none" }}>
+        <CustomCursor />
+        <NavBar />
         <PageLoaderProvider>{children}</PageLoaderProvider>
       </body>
     </html>
