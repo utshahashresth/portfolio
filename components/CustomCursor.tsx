@@ -3,109 +3,107 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 
+const CURSOR_COLOR = "#E8611A";
+
 export default function CustomCursor() {
-    const dotRef = useRef<HTMLDivElement>(null);
-    const ringRef = useRef<HTMLDivElement>(null);
+    const cursorRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (window.matchMedia("(pointer: coarse)").matches) return; // skip on touch
+        if (window.matchMedia("(pointer: coarse)").matches) return;
 
-        const dot = dotRef.current;
-        const ring = ringRef.current;
-        if (!dot || !ring) return;
+        const cursor = cursorRef.current;
+        if (!cursor) return;
 
-        // Start offscreen
-        gsap.set([dot, ring], { x: -100, y: -100 });
+        gsap.set(cursor, { x: -100, y: -100, opacity: 0, scale: 1 });
 
-        let mouseX = -100;
-        let mouseY = -100;
-        let ringX = -100;
-        let ringY = -100;
+        const setX = gsap.quickSetter(cursor, "x", "px");
+        const setY = gsap.quickSetter(cursor, "y", "px");
 
-        // Dot follows instantly; ring lerps behind
+        let targetX = -100;
+        let targetY = -100;
+        let currentX = -100;
+        let currentY = -100;
+        let visible = false;
+
         const onMove = (e: MouseEvent) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-            gsap.set(dot, { x: mouseX - 3, y: mouseY - 3 });
+            targetX = e.clientX;
+            targetY = e.clientY;
+            if (!visible) {
+                gsap.to(cursor, { opacity: 1, duration: 0.3 });
+                visible = true;
+            }
         };
 
-        // Ring lerps on RAF for smooth lag
-        let raf: number;
-        const loop = () => {
-            ringX += (mouseX - ringX) * 0.12;
-            ringY += (mouseY - ringY) * 0.12;
-            gsap.set(ring, { x: ringX - 18, y: ringY - 18 });
-            raf = requestAnimationFrame(loop);
-        };
-        raf = requestAnimationFrame(loop);
-
-        // Scale ring up when hovering a card
-        const onEnterCard = () => {
-            gsap.to(ring, { scale: 2.2, opacity: 0.5, duration: 0.3, ease: "power2.out" });
-            gsap.to(dot, { scale: 0, duration: 0.2, ease: "power2.out" });
-        };
-        const onLeaveCard = () => {
-            gsap.to(ring, { scale: 1, opacity: 1, duration: 0.35, ease: "power3.out" });
-            gsap.to(dot, { scale: 1, duration: 0.25, ease: "power3.out" });
+        const onLeave = () => {
+            gsap.to(cursor, { opacity: 0, duration: 0.3 });
+            visible = false;
         };
 
-        window.addEventListener("mousemove", onMove);
-
-        // Delegate to card elements
-        const attachCardListeners = () => {
-            document.querySelectorAll(".card-shuffle div[style*='cursor: none'], .card-shuffle div[style*='cursor:none']").forEach((el) => {
-                el.addEventListener("mouseenter", onEnterCard);
-                el.addEventListener("mouseleave", onLeaveCard);
+        const onEnter = () => {
+            gsap.to(cursor, {
+                scale: 3.5,
+                opacity: 0.15,
+                duration: 0.4,
+                ease: "power3.out",
             });
         };
 
-        // Attach after cards are rendered
-        const observer = new MutationObserver(attachCardListeners);
+        const onLeaveEl = () => {
+            gsap.to(cursor, {
+                scale: 1,
+                opacity: 1,
+                duration: 0.4,
+                ease: "power3.out",
+            });
+        };
+
+        const tick = () => {
+            currentX += (targetX - currentX) * 0.1;
+            currentY += (targetY - currentY) * 0.1;
+            setX(currentX);
+            setY(currentY);
+        };
+
+        gsap.ticker.add(tick);
+        gsap.ticker.lagSmoothing(0);
+
+        window.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseleave", onLeave);
+
+        const attach = () => {
+            document.querySelectorAll("a, button, [data-cursor-hover], .card-shuffle div").forEach((el) => {
+                el.addEventListener("mouseenter", onEnter);
+                el.addEventListener("mouseleave", onLeaveEl);
+            });
+        };
+
+        const observer = new MutationObserver(attach);
         observer.observe(document.body, { childList: true, subtree: true });
-        attachCardListeners();
+        attach();
 
         return () => {
+            gsap.ticker.remove(tick);
             window.removeEventListener("mousemove", onMove);
-            cancelAnimationFrame(raf);
+            document.removeEventListener("mouseleave", onLeave);
             observer.disconnect();
         };
     }, []);
 
     return (
-        <>
-            {/* Dot */}
-            <div
-                ref={dotRef}
-                style={{
-                    position: "fixed",
-                    top: 0,
-                    left: 0,
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "#1a1a1a",
-                    pointerEvents: "none",
-                    zIndex: 99999,
-                    willChange: "transform",
-                }}
-            />
-            {/* Ring */}
-            <div
-                ref={ringRef}
-                style={{
-                    position: "fixed",
-                    top: 0,
-                    left: 0,
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    border: "1px solid #1a1a1a",
-                    pointerEvents: "none",
-                    zIndex: 99998,
-                    willChange: "transform",
-                    opacity: 0.6,
-                }}
-            />
-        </>
+        <div
+            ref={cursorRef}
+            style={{
+                position: "fixed",
+                top: -6,
+                left: -6,
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                background: CURSOR_COLOR,
+                pointerEvents: "none",
+                zIndex: 99999,
+                willChange: "transform",
+            }}
+        />
     );
 }
