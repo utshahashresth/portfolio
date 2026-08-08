@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -14,9 +14,13 @@ export default function HorizontalScroll({ children }: { children: React.ReactNo
         const track = trackRef.current;
         const wrap = wrapRef.current;
         if (!track || !wrap) return;
-        if (window.innerWidth < 768) return;
 
-        const ctx = gsap.context(() => {
+        // matchMedia auto-reverts/rebuilds the pinned scroll as the viewport
+        // crosses 768px, so resizing or rotating a device doesn't leave the
+        // GSAP transform fighting the mobile column layout.
+        const mm = gsap.matchMedia();
+
+        mm.add("(min-width: 768px)", () => {
             const scrollDist = () => track.scrollWidth - window.innerWidth;
 
             gsap.to(track, {
@@ -33,14 +37,11 @@ export default function HorizontalScroll({ children }: { children: React.ReactNo
                     invalidateOnRefresh: true,
                 },
             });
+
+            ScrollTrigger.refresh();
         });
 
-        return () => ctx.revert();
-    }, []);
-
-    // Re-measure after first paint; layout shifts from fonts/images can skew scrollWidth
-    useEffect(() => {
-        if (window.innerWidth >= 768) ScrollTrigger.refresh();
+        return () => mm.revert();
     }, []);
 
     return (

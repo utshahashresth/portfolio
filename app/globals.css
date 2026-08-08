@@ -29,6 +29,7 @@ body {
 .h-scroll-wrap {
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
 }
 .h-scroll-track {
   display: flex;
@@ -54,9 +55,24 @@ body {
   /* Confine hero heading/meta to the hero section so they don't overlay later panels */
   .hero-heading-wrap {
     position: absolute !important;
+  }
+  /* ml-32 is a Tailwind utility on the heading itself, not the wrap — cancel it here */
+  .hero-heading-wrap .ml-32 {
     margin-left: 0 !important;
   }
   .hero-meta {
     position: absolute !important;
   }
+}
+
+/* Panels size to the viewport but can grow taller if content needs more room
+   (prevents clipping/overlap on short mobile-landscape viewports) */
+.panel-min-h {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.panel-h {
+  height: 100vh;
+  height: 100dvh;
 }

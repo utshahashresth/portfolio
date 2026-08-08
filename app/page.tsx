@@ -17,10 +17,10 @@ export default function Home() {
 
         {/* ── Panel 1: Hero ── */}
         <section
+          className="panel-h"
           style={{
             position: "relative",
             width: "100vw",
-            height: "100vh",
             flexShrink: 0,
             background: "#F8F3F4",
             overflow: "hidden",
@@ -42,13 +42,12 @@ export default function Home() {
             }}
           >
             <div
-              className="hero-heading-wrap"
+              className="hero-heading-wrap panel-h"
               style={{
                 position: "fixed",
                 top: 0,
                 left: 0,
                 width: "100vw",
-                height: "100vh",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",

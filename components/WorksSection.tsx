@@ -1,10 +1,9 @@
 export default function WorksSection() {
     return (
         <section
+            className="panel-min-h"
             style={{
                 width: "100vw",
-                minHeight: "100vh",
-                height: "100vh",
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",

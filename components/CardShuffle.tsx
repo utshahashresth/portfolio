@@ -31,6 +31,45 @@ const MOBILE_SCATTER_TARGETS = [
     { leftPct: 0.04, topPct: 0.68 },
 ];
 
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+    if (typeof window === "undefined") return null;
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    if (!sharedAudioCtx) sharedAudioCtx = new Ctor();
+    if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+    return sharedAudioCtx;
+}
+
+// Short two-note "pop" chime, similar in spirit to a chat notification blip.
+function playHoverChime() {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+
+    const notes = [
+        { freq: 1050, start: 0, duration: 0.09 },
+        { freq: 1500, start: 0.07, duration: 0.12 },
+    ];
+
+    notes.forEach(({ freq, start, duration }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+
+        const t0 = ctx.currentTime + start;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(0.18, t0 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + duration + 0.02);
+    });
+}
+
 function buildOffsets() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -117,11 +156,48 @@ export default function CardShuffle({
         return () => { tl.kill(); };
     }, [shouldAnimate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Re-scatter to match the new viewport on resize/orientation change (e.g. rotating
+    // a phone) — offsets are computed once at scatter time, so without this the cards
+    // stay calibrated to whatever size the screen was when they first landed.
+    useEffect(() => {
+        let resizeTimer: ReturnType<typeof setTimeout>;
+
+        const reposition = () => {
+            if (!scatteredRef.current) return;
+            const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
+            if (!cards.length) return;
+
+            const isMobile = window.innerWidth < 768;
+            const cw = isMobile ? MOBILE_CARD_W : CARD_W;
+            const ch = isMobile ? MOBILE_CARD_H : CARD_H;
+            const offsets = buildOffsets();
+            baseOffsetsRef.current = offsets;
+
+            cards.forEach((card, i) => {
+                gsap.set(card, { width: cw, height: ch, x: offsets[i].x, y: offsets[i].y });
+            });
+        };
+
+        const onResize = () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(reposition, 150);
+        };
+
+        window.addEventListener("resize", onResize);
+        window.addEventListener("orientationchange", reposition);
+        return () => {
+            clearTimeout(resizeTimer);
+            window.removeEventListener("resize", onResize);
+            window.removeEventListener("orientationchange", reposition);
+        };
+    }, []);
+
     // Hover handlers — lift card up, reveal colour, restore on leave
     function handleEnter(i: number) {
         if (!scatteredRef.current) return;
         const card = cardRefs.current[i];
         if (!card) return;
+        playHoverChime();
         const base = baseOffsetsRef.current[i];
         gsap.to(card, {
             y: base.y - 10,
@@ -181,7 +257,7 @@ export default function CardShuffle({
                             overflow: "hidden",
                             opacity: 0,
                             willChange: "transform, opacity, filter",
-                            cursor: "none",
+                            cursor: "pointer",
                         }}
                     >
                         <video

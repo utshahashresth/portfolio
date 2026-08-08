@@ -4,7 +4,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import PageLoaderProvider from "@/components/PageLoaderProvider";
 import NavBar from "@/components/NavBar";
-import CustomCursor from "@/components/CustomCursor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,8 +44,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${romanSerif.variable} ${robotoMono.variable} antialiased`}
     >
-      <body style={{ cursor: "none" }}>
-        <CustomCursor />
+      <body>
         <NavBar />
         <PageLoaderProvider>{children}</PageLoaderProvider>
       </body>
